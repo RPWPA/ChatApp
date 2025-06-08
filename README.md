@@ -2,6 +2,9 @@
 This project was made as a task for an interview.\
 The project takes the following requirements: login, simulating chatting with a bot and sending broadcast messages in multiple chat rooms. 
 
+# Deployed version
+https://chat-app-three-sigma-10.vercel.app/
+
 # Project Setup - *Requires Node version 20.12.2*
 1- Clone the repo\
 2- run `npm install`
