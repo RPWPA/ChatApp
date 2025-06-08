@@ -1,6 +1,31 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from 'react-redux';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  IconButton,
+  Avatar,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  ListItemButton,
+  Divider,
+  Paper,
+  useTheme,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+import {
+  Send as SendIcon,
+  Chat as ChatIcon,
+  Error as ErrorIcon,
+} from '@mui/icons-material';
 import { broadcastMessage } from '../../slices/chatSlice';
 import { RootState } from '../../store/store';
 import type { Message, ChatState } from '../../slices/chatSlice';
@@ -12,18 +37,29 @@ const chats = [
   { id: "3", name: "Announcements", description: "Important updates and news" },
 ];
 
-export const ChatList = () => {
+export default function ChatList() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const theme = useTheme();
   const [broadcastText, setBroadcastText] = useState("");
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [error, setError] = useState("");
   const chatState = useSelector((state: RootState) => state.chat as ChatState);
 
   const handleChatClick = (chatId: string) => {
     navigate(`/chat/${chatId}`);
   };
 
-  const handleBroadcast = () => {
-    if (broadcastText.trim()) {
+  const handleBroadcast = async () => {
+    if (!broadcastText.trim()) return;
+
+    setIsBroadcasting(true);
+    setError("");
+
+    try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       dispatch(broadcastMessage({
         chatIds: chats.map(chat => chat.id),
         message: {
@@ -33,6 +69,10 @@ export const ChatList = () => {
         }
       }));
       setBroadcastText("");
+    } catch (err) {
+      setError("Failed to broadcast message. Please try again.");
+    } finally {
+      setIsBroadcasting(false);
     }
   };
 
@@ -43,58 +83,118 @@ export const ChatList = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b">
-        <h1 className="text-2xl font-bold mb-4">Chat Rooms</h1>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={broadcastText}
-            onChange={(e) => setBroadcastText(e.target.value)}
-            placeholder="Broadcast a message..."
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleBroadcast}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Broadcast
-          </button>
-        </div>
-      </div>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Card>
+        <CardContent>
+          <Typography variant="h5" gutterBottom>
+            Broadcast Message
+          </Typography>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              fullWidth
+              placeholder="Type a message to broadcast..."
+              value={broadcastText}
+              onChange={(e) => setBroadcastText(e.target.value)}
+              disabled={isBroadcasting}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleBroadcast();
+                }
+              }}
+            />
+            <Button
+              variant="contained"
+              onClick={handleBroadcast}
+              disabled={!broadcastText.trim() || isBroadcasting}
+              startIcon={isBroadcasting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+            >
+              {isBroadcasting ? 'Broadcasting...' : 'Broadcast'}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-4">
-          {chats.map((chat) => {
+      <Paper sx={{ flex: 1, overflow: 'hidden' }}>
+        <List sx={{ height: '100%', overflow: 'auto' }}>
+          {chats.map((chat, index) => {
             const lastMessage = getLastMessage(chat.id);
             return (
-              <div
-                key={chat.id}
-                onClick={() => handleChatClick(chat.id)}
-                className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-lg font-semibold">{chat.name}</h2>
-                    <p className="text-sm text-gray-600">{chat.description}</p>
-                  </div>
-                  {lastMessage && (
-                    <div className="text-sm text-gray-500">
-                      {new Date(lastMessage.timestamp).toLocaleTimeString()}
-                    </div>
-                  )}
-                </div>
-                {lastMessage && (
-                  <div className="mt-2 text-sm text-gray-600 truncate">
-                    <span className="font-medium">{lastMessage.sender}: </span>
-                    {lastMessage.text}
-                  </div>
-                )}
-              </div>
+              <React.Fragment key={chat.id}>
+                {index > 0 && <Divider />}
+                <ListItem disablePadding>
+                  <ListItemButton
+                    onClick={() => handleChatClick(chat.id)}
+                    sx={{
+                      py: 2,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                        <ChatIcon />
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Typography variant="subtitle1" component="div">
+                          {chat.name}
+                        </Typography>
+                      }
+                      secondary={
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {chat.description}
+                          </Typography>
+                          {lastMessage && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography
+                                variant="body2"
+                                color="text.primary"
+                                sx={{
+                                  fontWeight: 500,
+                                  color: theme.palette.primary.main,
+                                }}
+                              >
+                                {lastMessage.sender}:
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {lastMessage.text}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ ml: 'auto' }}
+                              >
+                                {new Date(lastMessage.timestamp).toLocaleTimeString()}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      }
+                    />
+                  </ListItemButton>
+                </ListItem>
+              </React.Fragment>
             );
           })}
-        </div>
-      </div>
-    </div>
+        </List>
+      </Paper>
+    </Box>
   );
-}; 
+} 

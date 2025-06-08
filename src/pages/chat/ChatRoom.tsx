@@ -1,6 +1,31 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from 'react-redux';
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  IconButton,
+  Button,
+  Avatar,
+  CircularProgress,
+  Divider,
+  useTheme,
+  Alert,
+  Card,
+  CardMedia,
+  CardContent,
+  Tooltip,
+} from '@mui/material';
+import {
+  Send as SendIcon,
+  AttachFile as AttachFileIcon,
+  ArrowBack as ArrowBackIcon,
+  Image as ImageIcon,
+  Videocam as VideocamIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
 import { RootState } from '../../store/store';
 import { sendMessage } from '../../slices/chatSlice';
 import type { ChatState, Message } from '../../slices/chatSlice';
@@ -13,18 +38,22 @@ function getChatbotResponse(userMessage: string): string {
   return "I'm a chatbot. I can answer simple questions!";
 }
 
-function ChatRoom() {
+export default function ChatRoom() {
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const theme = useTheme();
   const messages = useSelector((state: RootState) => (state.chat as ChatState)[chatId || ''] || []);
   const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to the latest message (using useEffect and useRef)
+  // Auto-scroll to the latest message
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -57,25 +86,40 @@ function ChatRoom() {
     }, 100);
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((newMessage.trim() === "") && !selectedFile) return;
-    const userText = newMessage;
-    setNewMessage("");
 
-    let messagePayload = {
-      sender: "You",
-      text: userText,
-      timestamp: new Date().toISOString(),
-      mediaUrl: selectedFile ? (previewUrl || undefined) : undefined,
-      mediaType: selectedFile ? (selectedFile.type.startsWith("image") ? "image" : selectedFile.type.startsWith("video") ? "video" : undefined) : undefined as 'image' | 'video' | undefined,
-    };
+    setIsSending(true);
+    setError("");
 
-    if (selectedFile) {
-      simulateUpload(() => {
+    try {
+      const userText = newMessage;
+      setNewMessage("");
+
+      let messagePayload = {
+        sender: "You",
+        text: userText,
+        timestamp: new Date().toISOString(),
+        mediaUrl: selectedFile ? (previewUrl || undefined) : undefined,
+        mediaType: selectedFile ? (selectedFile.type.startsWith("image") ? "image" : selectedFile.type.startsWith("video") ? "video" : undefined) : undefined as 'image' | 'video' | undefined,
+      };
+
+      if (selectedFile) {
+        simulateUpload(() => {
+          dispatch(sendMessage({ chatId: chatId || '', message: messagePayload }));
+          setSelectedFile(null);
+          setPreviewUrl(null);
+          setTimeout(() => {
+            dispatch(sendMessage({ chatId: chatId || '', message: {
+              sender: "Chatbot",
+              text: getChatbotResponse(userText),
+              timestamp: new Date().toISOString(),
+            }}));
+          }, 1200);
+        });
+      } else {
         dispatch(sendMessage({ chatId: chatId || '', message: messagePayload }));
-        setSelectedFile(null);
-        setPreviewUrl(null);
         setTimeout(() => {
           dispatch(sendMessage({ chatId: chatId || '', message: {
             sender: "Chatbot",
@@ -83,74 +127,241 @@ function ChatRoom() {
             timestamp: new Date().toISOString(),
           }}));
         }, 1200);
-      });
-    } else {
-      dispatch(sendMessage({ chatId: chatId || '', message: messagePayload }));
-      setTimeout(() => {
-        dispatch(sendMessage({ chatId: chatId || '', message: {
-          sender: "Chatbot",
-          text: getChatbotResponse(userText),
-          timestamp: new Date().toISOString(),
-        }}));
-      }, 1200);
+      }
+    } catch (err) {
+      setError("Failed to send message. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1> Chat Room (TSX) – Chat ID: {chatId} </h1>
-      <button onClick={() => navigate("/chat")} style={{ marginBottom: "10px" }}> Back to Chat List </button>
-      <div style={{ height: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px", marginBottom: "10px" }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <IconButton onClick={() => navigate("/chat")} size="small">
+          <ArrowBackIcon />
+        </IconButton>
+        <Typography variant="h6">Chat Room {chatId}</Typography>
+      </Paper>
+
+      {/* Messages */}
+      <Box
+        sx={{
+          flex: 1,
+          overflow: 'auto',
+          p: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
         {messages.map((msg: Message) => (
-          <div key={msg.id} style={{ marginBottom: "10px" }}>
-            <strong>{msg.sender} ({new Date(msg.timestamp).toLocaleTimeString()})</strong>: {msg.text}
-            {msg.mediaUrl && msg.mediaType === "image" && (
-              <div><img src={msg.mediaUrl} alt="attachment" style={{ maxWidth: 200, maxHeight: 200, display: "block", marginTop: 8 }} /></div>
+          <Box
+            key={msg.id}
+            sx={{
+              display: 'flex',
+              justifyContent: msg.sender === 'You' ? 'flex-end' : 'flex-start',
+              gap: 1,
+            }}
+          >
+            {msg.sender !== 'You' && (
+              <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                {msg.sender === 'Chatbot' ? '🤖' : msg.sender[0]}
+              </Avatar>
             )}
-            {msg.mediaUrl && msg.mediaType === "video" && (
-              <div><video src={msg.mediaUrl} controls style={{ maxWidth: 200, maxHeight: 200, display: "block", marginTop: 8 }} /></div>
+            <Box
+              sx={{
+                maxWidth: '70%',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 0.5,
+              }}
+            >
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: msg.sender === 'You'
+                    ? theme.palette.primary.main
+                    : theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(0, 0, 0, 0.04)',
+                  color: msg.sender === 'You'
+                    ? theme.palette.primary.contrastText
+                    : theme.palette.text.primary,
+                }}
+              >
+                {msg.text && (
+                  <Typography variant="body1">{msg.text}</Typography>
+                )}
+                {msg.mediaUrl && msg.mediaType === "image" && (
+                  <Card sx={{ mt: 1, maxWidth: 300 }}>
+                    <CardMedia
+                      component="img"
+                      image={msg.mediaUrl}
+                      alt="attachment"
+                      sx={{ maxHeight: 200, objectFit: 'contain' }}
+                    />
+                  </Card>
+                )}
+                {msg.mediaUrl && msg.mediaType === "video" && (
+                  <Card sx={{ mt: 1, maxWidth: 300 }}>
+                    <CardMedia
+                      component="video"
+                      src={msg.mediaUrl}
+                      controls
+                      sx={{ maxHeight: 200 }}
+                    />
+                  </Card>
+                )}
+              </Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ alignSelf: msg.sender === 'You' ? 'flex-end' : 'flex-start' }}
+              >
+                {new Date(msg.timestamp).toLocaleTimeString()}
+              </Typography>
+            </Box>
+            {msg.sender === 'You' && (
+              <Avatar sx={{ bgcolor: theme.palette.secondary.main }}>
+                Y
+              </Avatar>
             )}
-          </div>
+          </Box>
         ))}
         <div ref={chatEndRef} />
-      </div>
-      {uploadProgress !== null && (
-        <div style={{ marginBottom: 10 }}>
-          <div>Uploading: {uploadProgress}%</div>
-          <progress value={uploadProgress} max={100} style={{ width: 200 }} />
-        </div>
+      </Box>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mx: 2, mb: 2 }}>
+          {error}
+        </Alert>
       )}
+
+      {/* File Preview */}
       {previewUrl && (
-        <div style={{ marginBottom: 10 }}>
-          <div>Preview:</div>
-          {selectedFile && selectedFile.type.startsWith("image") && (
-            <img src={previewUrl} alt="preview" style={{ maxWidth: 100, maxHeight: 100 }} />
-          )}
-          {selectedFile && selectedFile.type.startsWith("video") && (
-            <video src={previewUrl} controls style={{ maxWidth: 100, maxHeight: 100 }} />
-          )}
-        </div>
+        <Card sx={{ mx: 2, mb: 2, position: 'relative' }}>
+          <IconButton
+            size="small"
+            onClick={handleRemoveFile}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              bgcolor: 'rgba(0, 0, 0, 0.5)',
+              color: 'white',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.7)',
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {selectedFile?.type.startsWith("image") ? (
+            <CardMedia
+              component="img"
+              image={previewUrl}
+              alt="preview"
+              sx={{ height: 100, objectFit: 'contain' }}
+            />
+          ) : selectedFile?.type.startsWith("video") ? (
+            <CardMedia
+              component="video"
+              src={previewUrl}
+              controls
+              sx={{ height: 100 }}
+            />
+          ) : null}
+          <CardContent sx={{ py: 1 }}>
+            <Typography variant="body2" noWrap>
+              {selectedFile?.name}
+            </Typography>
+          </CardContent>
+        </Card>
       )}
-      <form onSubmit={handleSendMessage} style={{ display: "flex", alignItems: "center" }}>
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message (e.g. 'Hello!')"
-          style={{ flex: 1, marginRight: "10px" }}
-          disabled={uploadProgress !== null}
-        />
+
+      {/* Upload Progress */}
+      {uploadProgress !== null && (
+        <Box sx={{ mx: 2, mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Uploading: {uploadProgress}%
+          </Typography>
+          <CircularProgress variant="determinate" value={uploadProgress} size={20} />
+        </Box>
+      )}
+
+      {/* Message Input */}
+      <Paper
+        component="form"
+        onSubmit={handleSendMessage}
+        sx={{
+          p: 2,
+          display: 'flex',
+          gap: 1,
+          borderTop: 1,
+          borderColor: 'divider',
+        }}
+      >
         <input
           type="file"
+          ref={fileInputRef}
           accept="image/*,video/*"
           onChange={handleFileChange}
-          style={{ marginRight: "10px" }}
-          disabled={uploadProgress !== null}
+          style={{ display: 'none' }}
         />
-        <button type="submit" disabled={uploadProgress !== null}> Send </button>
-      </form>
-    </div>
+        <Tooltip title="Attach file">
+          <IconButton
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSending || uploadProgress !== null}
+          >
+            <AttachFileIcon />
+          </IconButton>
+        </Tooltip>
+        <TextField
+          fullWidth
+          placeholder="Type a message..."
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          disabled={isSending || uploadProgress !== null}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSendMessage(e);
+            }
+          }}
+          multiline
+          maxRows={4}
+        />
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={(!newMessage.trim() && !selectedFile) || isSending || uploadProgress !== null}
+          endIcon={isSending ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+        >
+          {isSending ? 'Sending...' : 'Send'}
+        </Button>
+      </Paper>
+    </Box>
   );
-}
-
-export default ChatRoom; 
+} 
