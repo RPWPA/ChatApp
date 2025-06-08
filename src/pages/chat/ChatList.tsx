@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from 'react-redux';
+import { broadcastMessage } from '../../slices/chatSlice';
 
 // Simulated chat list (in a real app, you'd fetch this from an API or a store)
 const chatList = [
@@ -10,10 +12,11 @@ const chatList = [
 
 function ChatList() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [broadcastMode, setBroadcastMode] = useState(false);
   const [selectedChats, setSelectedChats] = useState<number[]>([]);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
-  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastText, setBroadcastText] = useState("");
 
   const handleChatClick = (chatId: number) => {
     if (broadcastMode) {
@@ -45,14 +48,19 @@ function ChatList() {
 
   const handleBroadcastSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (broadcastMessage.trim() === "") {
+    if (broadcastText.trim() === "") {
       alert("Broadcast message cannot be empty.");
       return;
     }
-    // In a real app, you'd send the broadcast message (e.g. via an API call) to the selected chat(s).
-    console.log(`Broadcasting "${broadcastMessage}" to chat(s):`, selectedChats);
-    // (For demo, we just log and close the modal.)
-    setBroadcastMessage("");
+    dispatch(broadcastMessage({
+      chatIds: selectedChats.map(String),
+      message: {
+        sender: "You",
+        text: broadcastText,
+        timestamp: new Date().toISOString(),
+      },
+    }));
+    setBroadcastText("");
     setShowBroadcastModal(false);
     setBroadcastMode(false);
     setSelectedChats([]);
@@ -80,14 +88,14 @@ function ChatList() {
           <h2>Broadcast Message</h2>
           <form onSubmit={handleBroadcastSubmit}>
             <textarea
-              value={broadcastMessage}
-              onChange={(e) => setBroadcastMessage(e.target.value)}
+              value={broadcastText}
+              onChange={(e) => setBroadcastText(e.target.value)}
               placeholder="Enter broadcast message (e.g. 'Hello everyone!')"
               rows={3}
               style={{ width: "100%", marginBottom: "10px" }}
             />
             <button type="submit"> Send Broadcast </button>
-            <button type="button" onClick={() => { setShowBroadcastModal(false); setBroadcastMessage(""); }} style={{ marginLeft: "10px" }}> Cancel </button>
+            <button type="button" onClick={() => { setShowBroadcastModal(false); setBroadcastText(""); }} style={{ marginLeft: "10px" }}> Cancel </button>
           </form>
         </div>
       )}

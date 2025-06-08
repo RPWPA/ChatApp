@@ -1,22 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-
-// Define a Message type that includes optional mediaUrl and mediaType
-interface Message {
-  id: number;
-  sender: string;
-  text: string;
-  timestamp: Date;
-  mediaUrl?: string;
-  mediaType?: 'image' | 'video';
-}
-
-// Update initialMessages to use Message[]
-const initialMessages: Message[] = [
-  { id: 1, sender: "User A", text: "Hello, how are you?", timestamp: new Date(2023, 0, 1, 10, 0) },
-  { id: 2, sender: "You", text: "I'm fine, thanks!", timestamp: new Date(2023, 0, 1, 10, 1) },
-  { id: 3, sender: "User A", text: "See you later.", timestamp: new Date(2023, 0, 1, 10, 2) }
-];
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../../store/store';
+import { sendMessage } from '../../slices/chatSlice';
+import type { ChatState, Message } from '../../slices/chatSlice';
 
 function getChatbotResponse(userMessage: string): string {
   // Simple canned/logic-based responses
@@ -29,7 +16,8 @@ function getChatbotResponse(userMessage: string): string {
 function ChatRoom() {
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const dispatch = useDispatch();
+  const messages = useSelector((state: RootState) => (state.chat as ChatState)[chatId || ''] || []);
   const [newMessage, setNewMessage] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -71,54 +59,39 @@ function ChatRoom() {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === "" && !selectedFile) return;
+    if ((newMessage.trim() === "") && !selectedFile) return;
     const userText = newMessage;
     setNewMessage("");
 
-    let newMsg: Message;
-    if (selectedFile) {
-      newMsg = {
-        id: messages.length + 1,
-        sender: "You",
-        text: userText,
-        timestamp: new Date(),
-        mediaUrl: previewUrl || undefined,
-        mediaType: selectedFile.type.startsWith("image") ? "image" : selectedFile.type.startsWith("video") ? "video" : undefined,
-      };
-    } else {
-      newMsg = {
-        id: messages.length + 1,
-        sender: "You",
-        text: userText,
-        timestamp: new Date(),
-      };
-    }
+    let messagePayload = {
+      sender: "You",
+      text: userText,
+      timestamp: new Date().toISOString(),
+      mediaUrl: selectedFile ? (previewUrl || undefined) : undefined,
+      mediaType: selectedFile ? (selectedFile.type.startsWith("image") ? "image" : selectedFile.type.startsWith("video") ? "video" : undefined) : undefined as 'image' | 'video' | undefined,
+    };
 
     if (selectedFile) {
       simulateUpload(() => {
-        setMessages((prev) => [...prev, newMsg]);
+        dispatch(sendMessage({ chatId: chatId || '', message: messagePayload }));
         setSelectedFile(null);
         setPreviewUrl(null);
         setTimeout(() => {
-          const botMsg: Message = {
-            id: messages.length + 2,
+          dispatch(sendMessage({ chatId: chatId || '', message: {
             sender: "Chatbot",
             text: getChatbotResponse(userText),
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, botMsg]);
+            timestamp: new Date().toISOString(),
+          }}));
         }, 1200);
       });
     } else {
-      setMessages((prev) => [...prev, newMsg]);
+      dispatch(sendMessage({ chatId: chatId || '', message: messagePayload }));
       setTimeout(() => {
-        const botMsg: Message = {
-          id: messages.length + 2,
+        dispatch(sendMessage({ chatId: chatId || '', message: {
           sender: "Chatbot",
           text: getChatbotResponse(userText),
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, botMsg]);
+          timestamp: new Date().toISOString(),
+        }}));
       }, 1200);
     }
   };
@@ -128,9 +101,9 @@ function ChatRoom() {
       <h1> Chat Room (TSX) – Chat ID: {chatId} </h1>
       <button onClick={() => navigate("/chat")} style={{ marginBottom: "10px" }}> Back to Chat List </button>
       <div style={{ height: "400px", overflowY: "auto", border: "1px solid #ccc", padding: "10px", marginBottom: "10px" }}>
-        {messages.map((msg) => (
+        {messages.map((msg: Message) => (
           <div key={msg.id} style={{ marginBottom: "10px" }}>
-            <strong>{msg.sender} ({msg.timestamp.toLocaleTimeString()})</strong>: {msg.text}
+            <strong>{msg.sender} ({new Date(msg.timestamp).toLocaleTimeString()})</strong>: {msg.text}
             {msg.mediaUrl && msg.mediaType === "image" && (
               <div><img src={msg.mediaUrl} alt="attachment" style={{ maxWidth: 200, maxHeight: 200, display: "block", marginTop: 8 }} /></div>
             )}
