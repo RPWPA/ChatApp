@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import Login from "./pages/login/Login";
 import Home from "./pages/home/Home";
+import ChatList from "./pages/chat/ChatList";
+import ChatRoom from "./pages/chat/ChatRoom";
 
 function App() {
   const navigate = useNavigate();
@@ -17,6 +19,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Home />} />
+        <Route path="/chat" element={<ChatList />} />
+        <Route path="/chat/:chatId" element={<ChatRoom />} />
       </Routes>
   );
 }
