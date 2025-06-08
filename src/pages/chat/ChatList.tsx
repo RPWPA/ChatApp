@@ -26,37 +26,76 @@ import {
   Send as SendIcon,
   Chat as ChatIcon,
 } from '@mui/icons-material';
-import { broadcastMessageAsync } from '../../slices/chatSlice';
+import { broadcastMessageAsync, fetchChatMessages } from '../../slices/chatSlice';
 import { AppDispatch, RootState } from '../../store/store';
 import type { Message, ChatState } from '../../slices/chatSlice';
 import { apiService } from '../../services/api';
+
+interface ChatWithLastMessage {
+  id: string;
+  name: string;
+  description: string;
+  lastMessage?: Message;
+}
 
 export default function ChatList() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
   const [broadcastText, setBroadcastText] = useState("");
-  const [chats, setChats] = useState<Array<{ id: string; name: string; description: string }>>([]);
+  const [chats, setChats] = useState<ChatWithLastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [error, setError] = useState("");
   const chatState = useSelector((state: RootState) => state.chat as ChatState);
-  const [isLoadingChats, setIsLoadingChats] = useState(true);
 
-  // Fetch chats when component mounts
+  // Fetch chats and their last messages when component mounts
   useEffect(() => {
-    const fetchChats = async () => {
+    const fetchChatsAndMessages = async () => {
       setIsLoadingChats(true);
       try {
+        // Fetch chat list
         const chatList = await apiService.getChats();
-        setChats(chatList);
+        
+        // Fetch last message for each chat
+        const chatsWithMessages = await Promise.all(
+          chatList.map(async (chat) => {
+            try {
+              const messages = await apiService.getChatMessages(chat.id);
+              return {
+                ...chat,
+                lastMessage: messages[messages.length - 1],
+              };
+            } catch (err) {
+              console.error(`Failed to fetch messages for chat ${chat.id}:`, err);
+              return {
+                ...chat,
+                lastMessage: undefined,
+              };
+            }
+          })
+        );
+
+        setChats(chatsWithMessages);
       } catch (err) {
         setError("Failed to fetch chat list");
       } finally {
         setIsLoadingChats(false);
       }
     };
-    fetchChats();
+
+    fetchChatsAndMessages();
   }, []);
+
+  // Update last messages when chat state changes
+  useEffect(() => {
+    setChats(prevChats => 
+      prevChats.map(chat => ({
+        ...chat,
+        lastMessage: chatState[chat.id]?.[chatState[chat.id].length - 1],
+      }))
+    );
+  }, [chatState]);
 
   const handleChatClick = (chatId: string) => {
     navigate(`/chat/${chatId}`);
@@ -78,12 +117,6 @@ export default function ChatList() {
     } catch (err) {
       setError("Failed to broadcast message. Please try again.");
     }
-  };
-
-  // Get the last message for a specific chat
-  const getLastMessage = (chatId: string): Message | undefined => {
-    const chatMessages = chatState[chatId] || [];
-    return chatMessages[chatMessages.length - 1];
   };
 
   // Loading skeleton for chat items
@@ -156,77 +189,74 @@ export default function ChatList() {
           </List>
         ) : (
           <List sx={{ height: '100%', overflow: 'auto' }}>
-            {chats.map((chat, index) => {
-              const lastMessage = getLastMessage(chat.id);
-              return (
-                <React.Fragment key={chat.id}>
-                  {index > 0 && <Divider />}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      onClick={() => handleChatClick(chat.id)}
-                      sx={{
-                        py: 2,
-                        '&:hover': {
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                          <ChatIcon />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="subtitle1" component="div">
-                            {chat.name}
+            {chats.map((chat, index) => (
+              <React.Fragment key={chat.id}>
+                {index > 0 && <Divider />}
+                <ListItem disablePadding>
+                  <ListItemButton
+                    onClick={() => handleChatClick(chat.id)}
+                    sx={{
+                      py: 2,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                        <ChatIcon />
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Typography variant="subtitle1" component="div">
+                          {chat.name}
+                        </Typography>
+                      }
+                      secondary={
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {chat.description}
                           </Typography>
-                        }
-                        secondary={
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              {chat.description}
-                            </Typography>
-                            {lastMessage && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography
-                                  variant="body2"
-                                  color="text.primary"
-                                  sx={{
-                                    fontWeight: 500,
-                                    color: theme.palette.primary.main,
-                                  }}
-                                >
-                                  {lastMessage.sender}:
-                                </Typography>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {lastMessage.text}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ ml: 'auto' }}
-                                >
-                                  {new Date(lastMessage.timestamp).toLocaleTimeString()}
-                                </Typography>
-                              </Box>
-                            )}
-                          </Box>
-                        }
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                </React.Fragment>
-              );
-            })}
+                          {chat.lastMessage && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography
+                                variant="body2"
+                                color="text.primary"
+                                sx={{
+                                  fontWeight: 500,
+                                  color: theme.palette.primary.main,
+                                }}
+                              >
+                                {chat.lastMessage.sender}:
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {chat.lastMessage.text}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ ml: 'auto' }}
+                              >
+                                {new Date(chat.lastMessage.timestamp).toLocaleTimeString()}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      }
+                    />
+                  </ListItemButton>
+                </ListItem>
+              </React.Fragment>
+            ))}
           </List>
         )}
       </Paper>
