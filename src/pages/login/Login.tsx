@@ -12,6 +12,7 @@ import {
   InputAdornment,
   IconButton,
   useTheme,
+  CircularProgress,
 } from "@mui/material";
 import {
   Visibility,
@@ -19,6 +20,7 @@ import {
   Email as EmailIcon,
   Lock as LockIcon,
 } from "@mui/icons-material";
+import { apiService } from "../../services/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -35,18 +37,12 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Simulate login with hardcoded credentials
-      if (email === "test@chat.com" && password === "123456") {
-        localStorage.setItem("sessionToken", "simulated-session-token");
-        navigate("/");
-      } else {
-        setError("Invalid credentials. (Hint: test@chat.com / 123456)");
-      }
-    } catch (err) {
-      setError("An error occurred. Please try again.");
+      const response = await apiService.login({ email, password });
+      localStorage.setItem("sessionToken", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      navigate("/");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +154,7 @@ export default function Login() {
                   fontSize: "1.1rem",
                 }}
               >
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? <CircularProgress size={24} /> : "Sign In"}
               </Button>
               <Typography variant="body2" color="text.secondary" align="center">
                 Demo credentials: test@chat.com / 123456

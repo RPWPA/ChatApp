@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Paper,
@@ -26,9 +26,9 @@ import {
   Videocam as VideocamIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
-import { RootState } from '../../store/store';
-import { sendMessage } from '../../slices/chatSlice';
-import type { ChatState, Message } from '../../slices/chatSlice';
+import { AppDispatch, RootState } from '../../store/store';
+import type { Message, ChatState } from '../../slices/chatSlice';
+import { sendMessageAsync, fetchChatMessages } from '../../slices/chatSlice';
 
 function getChatbotResponse(userMessage: string): string {
   // Simple canned/logic-based responses
@@ -41,17 +41,24 @@ function getChatbotResponse(userMessage: string): string {
 export default function ChatRoom() {
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
   const messages = useSelector((state: RootState) => (state.chat as ChatState)[chatId || ''] || []);
+  const loading = useSelector((state: RootState) => (state.chat as ChatState).loading);
+  const error = useSelector((state: RootState) => (state.chat as ChatState).error);
   const [newMessage, setNewMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [error, setError] = useState("");
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch messages when component mounts
+  useEffect(() => {
+    if (chatId) {
+      dispatch(fetchChatMessages(chatId));
+    }
+  }, [chatId, dispatch]);
 
   // Auto-scroll to the latest message
   useEffect(() => {
@@ -90,48 +97,49 @@ export default function ChatRoom() {
     e.preventDefault();
     if ((newMessage.trim() === "") && !selectedFile) return;
 
-    setIsSending(true);
-    setError("");
+    const userText = newMessage;
+    setNewMessage("");
 
-    try {
-      const userText = newMessage;
-      setNewMessage("");
+    let messagePayload = {
+      sender: "You",
+      text: userText,
+      timestamp: new Date().toISOString(),
+      mediaUrl: selectedFile ? (previewUrl || undefined) : undefined,
+      mediaType: selectedFile ? (selectedFile.type.startsWith("image") ? "image" : selectedFile.type.startsWith("video") ? "video" : undefined) : undefined as 'image' | 'video' | undefined,
+    };
 
-      let messagePayload = {
-        sender: "You",
-        text: userText,
-        timestamp: new Date().toISOString(),
-        mediaUrl: selectedFile ? (previewUrl || undefined) : undefined,
-        mediaType: selectedFile ? (selectedFile.type.startsWith("image") ? "image" : selectedFile.type.startsWith("video") ? "video" : undefined) : undefined as 'image' | 'video' | undefined,
-      };
-
-      if (selectedFile) {
-        simulateUpload(() => {
-          dispatch(sendMessage({ chatId: chatId || '', message: messagePayload }));
-          setSelectedFile(null);
-          setPreviewUrl(null);
-          setTimeout(() => {
-            dispatch(sendMessage({ chatId: chatId || '', message: {
+    if (selectedFile) {
+      simulateUpload(() => {
+        dispatch(sendMessageAsync({ chatId: chatId || '', message: messagePayload }));
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        
+        // Simulate chatbot response
+        setTimeout(() => {
+          dispatch(sendMessageAsync({ 
+            chatId: chatId || '', 
+            message: {
               sender: "Chatbot",
               text: getChatbotResponse(userText),
               timestamp: new Date().toISOString(),
-            }}));
-          }, 1200);
-        });
-      } else {
-        dispatch(sendMessage({ chatId: chatId || '', message: messagePayload }));
-        setTimeout(() => {
-          dispatch(sendMessage({ chatId: chatId || '', message: {
+            }
+          }));
+        }, 1200);
+      });
+    } else {
+      dispatch(sendMessageAsync({ chatId: chatId || '', message: messagePayload }));
+      
+      // Simulate chatbot response
+      setTimeout(() => {
+        dispatch(sendMessageAsync({ 
+          chatId: chatId || '', 
+          message: {
             sender: "Chatbot",
             text: getChatbotResponse(userText),
             timestamp: new Date().toISOString(),
-          }}));
-        }, 1200);
-      }
-    } catch (err) {
-      setError("Failed to send message. Please try again.");
-    } finally {
-      setIsSending(false);
+          }
+        }));
+      }, 1200);
     }
   };
 
@@ -333,7 +341,7 @@ export default function ChatRoom() {
         <Tooltip title="Attach file">
           <IconButton
             onClick={() => fileInputRef.current?.click()}
-            disabled={isSending || uploadProgress !== null}
+            disabled={uploadProgress !== null}
           >
             <AttachFileIcon />
           </IconButton>
@@ -343,7 +351,7 @@ export default function ChatRoom() {
           placeholder="Type a message..."
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          disabled={isSending || uploadProgress !== null}
+          disabled={uploadProgress !== null}
           onKeyPress={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -356,10 +364,10 @@ export default function ChatRoom() {
         <Button
           type="submit"
           variant="contained"
-          disabled={(!newMessage.trim() && !selectedFile) || isSending || uploadProgress !== null}
-          endIcon={isSending ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+          disabled={(!newMessage.trim() && !selectedFile) || uploadProgress !== null}
+          endIcon={uploadProgress !== null ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
         >
-          {isSending ? 'Sending...' : 'Send'}
+          {uploadProgress !== null ? 'Sending...' : 'Send'}
         </Button>
       </Paper>
     </Box>
