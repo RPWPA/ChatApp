@@ -22,7 +22,6 @@ function ChatRoom() {
   const [messages, setMessages] = useState(initialMessages);
   const [newMessage, setNewMessage] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const isChatbot = chatId === "3";
 
   // Auto-scroll to the latest message (using useEffect and useRef)
   useEffect(() => {
@@ -34,29 +33,31 @@ function ChatRoom() {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (newMessage.trim() === "") return;
+    const userText = newMessage;
+    setNewMessage("");
+  
     const newMsg = {
       id: messages.length + 1,
       sender: "You",
-      text: newMessage,
-      timestamp: new Date()
+      text: userText,
+      timestamp: new Date(),
     };
-    setMessages([...messages, newMsg]);
-    setNewMessage("");
-
-    // If this is the chatbot room, simulate a delayed chatbot response
-    if (isChatbot) {
-      const userText = newMessage;
-      setTimeout(() => {
-        const botMsg = {
-          id: messages.length + 2,
-          sender: "Chatbot",
-          text: getChatbotResponse(userText),
-          timestamp: new Date()
-        };
-        setMessages(current => [...current, botMsg]);
-      }, 1200); // 1.2s delay
-    }
+  
+    // Add user message to messages
+    setMessages((prev) => [...prev, newMsg]);
+  
+    // Simulate delayed bot response outside of state update to avoid double-calling
+    setTimeout(() => {
+      const botMsg = {
+        id: messages.length + 2, // +2 because we're anticipating the previous message added
+        sender: "Chatbot",
+        text: getChatbotResponse(userText),
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+    }, 1200);
   };
+  
 
   return (
     <div style={{ padding: "20px" }}>
