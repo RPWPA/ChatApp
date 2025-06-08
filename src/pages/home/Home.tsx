@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import ChatList from "../chat/ChatList";
+import {ChatList} from "../chat/ChatList";
 
 export default function Home() {
   const navigate = useNavigate();

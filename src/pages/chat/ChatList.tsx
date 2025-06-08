@@ -1,106 +1,100 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { broadcastMessage } from '../../slices/chatSlice';
+import { RootState } from '../../store/store';
+import type { Message, ChatState } from '../../slices/chatSlice';
 
 // Simulated chat list (in a real app, you'd fetch this from an API or a store)
-const chatList = [
-  { id: 1, name: "Chat 1 (User A)", lastMessage: "Hello, how are you?" },
-  { id: 2, name: "Chat 2 (User B)", lastMessage: "See you later." },
-  { id: 3, name: "Chat 3 (Chatbot)", lastMessage: "How can I assist you?" }
+const chats = [
+  { id: "1", name: "General Chat", description: "Main chat room for everyone" },
+  { id: "2", name: "Support", description: "Get help from our team" },
+  { id: "3", name: "Announcements", description: "Important updates and news" },
 ];
 
-function ChatList() {
+export const ChatList = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [broadcastMode, setBroadcastMode] = useState(false);
-  const [selectedChats, setSelectedChats] = useState<number[]>([]);
-  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastText, setBroadcastText] = useState("");
+  const chatState = useSelector((state: RootState) => state.chat as ChatState);
 
-  const handleChatClick = (chatId: number) => {
-    if (broadcastMode) {
-      // Toggle selection (for broadcast)
-      if (selectedChats.includes(chatId)) {
-         setSelectedChats(selectedChats.filter(id => id !== chatId));
-      } else {
-         setSelectedChats([...selectedChats, chatId]);
-      }
-    } else {
-      // Navigate to chat room (e.g. /chat/1)
-      navigate(`/chat/${chatId}`);
+  const handleChatClick = (chatId: string) => {
+    navigate(`/chat/${chatId}`);
+  };
+
+  const handleBroadcast = () => {
+    if (broadcastText.trim()) {
+      dispatch(broadcastMessage({
+        chatIds: chats.map(chat => chat.id),
+        message: {
+          sender: "System",
+          text: broadcastText,
+          timestamp: new Date().toISOString(),
+        }
+      }));
+      setBroadcastText("");
     }
   };
 
-  const handleBroadcastClick = () => {
-    if (broadcastMode) {
-      // If already in broadcast mode, open modal (if at least one chat is selected)
-      if (selectedChats.length > 0) {
-         setShowBroadcastModal(true);
-      } else {
-         alert("Please select at least one chat to broadcast.");
-      }
-    } else {
-      // Toggle broadcast mode (multi-select)
-      setBroadcastMode(true);
-    }
-  };
-
-  const handleBroadcastSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (broadcastText.trim() === "") {
-      alert("Broadcast message cannot be empty.");
-      return;
-    }
-    dispatch(broadcastMessage({
-      chatIds: selectedChats.map(String),
-      message: {
-        sender: "You",
-        text: broadcastText,
-        timestamp: new Date().toISOString(),
-      },
-    }));
-    setBroadcastText("");
-    setShowBroadcastModal(false);
-    setBroadcastMode(false);
-    setSelectedChats([]);
+  // Get the last message for a specific chat
+  const getLastMessage = (chatId: string): Message | undefined => {
+    const chatMessages = chatState[chatId] || [];
+    return chatMessages[chatMessages.length - 1];
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1> Chat List (TSX) </h1>
-      <button onClick={handleBroadcastClick} style={{ marginBottom: "10px" }}>
-        {broadcastMode ? `Broadcast (Selected: ${selectedChats.length})` : "Broadcast"}
-      </button>
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {chatList.map((chat) => (
-          <li
-            key={chat.id}
-            onClick={() => handleChatClick(chat.id)}
-            style={{ padding: "10px", border: "1px solid #ccc", marginBottom: "5px", cursor: "pointer", backgroundColor: (broadcastMode && selectedChats.includes(chat.id)) ? "#e0e0e0" : "white" }}
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b">
+        <h1 className="text-2xl font-bold mb-4">Chat Rooms</h1>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={broadcastText}
+            onChange={(e) => setBroadcastText(e.target.value)}
+            placeholder="Broadcast a message..."
+            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleBroadcast}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <strong>{chat.name}</strong> – {chat.lastMessage}
-          </li>
-        ))}
-      </ul>
-      {showBroadcastModal && (
-        <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", padding: "20px", border: "1px solid #ccc", backgroundColor: "white", zIndex: 1000 }}>
-          <h2>Broadcast Message</h2>
-          <form onSubmit={handleBroadcastSubmit}>
-            <textarea
-              value={broadcastText}
-              onChange={(e) => setBroadcastText(e.target.value)}
-              placeholder="Enter broadcast message (e.g. 'Hello everyone!')"
-              rows={3}
-              style={{ width: "100%", marginBottom: "10px" }}
-            />
-            <button type="submit"> Send Broadcast </button>
-            <button type="button" onClick={() => { setShowBroadcastModal(false); setBroadcastText(""); }} style={{ marginLeft: "10px" }}> Cancel </button>
-          </form>
+            Broadcast
+          </button>
         </div>
-      )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="space-y-4">
+          {chats.map((chat) => {
+            const lastMessage = getLastMessage(chat.id);
+            return (
+              <div
+                key={chat.id}
+                onClick={() => handleChatClick(chat.id)}
+                className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h2 className="text-lg font-semibold">{chat.name}</h2>
+                    <p className="text-sm text-gray-600">{chat.description}</p>
+                  </div>
+                  {lastMessage && (
+                    <div className="text-sm text-gray-500">
+                      {new Date(lastMessage.timestamp).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+                {lastMessage && (
+                  <div className="mt-2 text-sm text-gray-600 truncate">
+                    <span className="font-medium">{lastMessage.sender}: </span>
+                    {lastMessage.text}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
-}
-
-export default ChatList; 
+}; 
