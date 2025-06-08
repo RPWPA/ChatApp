@@ -30,6 +30,7 @@ import { broadcastMessageAsync, fetchChatMessages } from '../../slices/chatSlice
 import { AppDispatch, RootState } from '../../store/store';
 import type { Message, ChatState } from '../../slices/chatSlice';
 import { apiService } from '../../services/api';
+import { useNotification } from '../../context/NotificationContext';
 
 interface ChatWithLastMessage {
   id: string;
@@ -42,6 +43,7 @@ export default function ChatList() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
+  const { showNotification } = useNotification();
   const [broadcastText, setBroadcastText] = useState("");
   const [chats, setChats] = useState<ChatWithLastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -113,9 +115,13 @@ export default function ChatList() {
           timestamp: new Date().toISOString(),
         }
       })).unwrap();
+      
+      showNotification(`Broadcast message sent to ${chats.length} chats`, 'success');
       setBroadcastText("");
     } catch (err) {
-      setError("Failed to broadcast message. Please try again.");
+      const errorMessage = "Failed to broadcast message. Please try again.";
+      showNotification(errorMessage, 'error');
+      setError(errorMessage);
     }
   };
 

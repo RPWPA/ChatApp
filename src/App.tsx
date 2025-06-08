@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./theme/ThemeContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { Layout } from "./components/Layout";
 import Login from "./pages/login/Login";
 import Home from "./pages/home/Home";
@@ -38,9 +39,11 @@ const AppContent = () => {
 function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <NotificationProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }
