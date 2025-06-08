@@ -1,46 +1,25 @@
-# Getting Started with Create React App
+# Description
+This project was made as a task for an interview.\
+The project takes the following requirements: login, simulating chatting with a bot and sending broadcast messages in multiple chat rooms. 
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Project Setup - *Requires Node version 20.12.2*
+1- Clone the repo\
+2- run `npm install`
 
-## Available Scripts
+# Folder Structure
+![image](https://github.com/user-attachments/assets/3ddc4a7e-d0f6-4936-845e-15021de03921)
 
-In the project directory, you can run:
+# Screenshots
+![2025-06-08 16_50_26-](https://github.com/user-attachments/assets/f3500b2a-2251-4738-9638-f670f8dc6326)\
 
-### `yarn start`
+![2025-06-08 16_50_16-](https://github.com/user-attachments/assets/92f65601-ff8d-495a-a00e-ea4b276a6ca2)\
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+![2025-06-08 16_50_09-](https://github.com/user-attachments/assets/ff15d5bb-6271-46cf-a786-24e815ecc515)\
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+![2025-06-08 16_49_56-](https://github.com/user-attachments/assets/628075a1-8418-4ff1-b38e-e3a6fde27ac9)
 
-### `yarn test`
+# All mocks are found within the api file inside the services\
+![2025-06-08 17_31_07-Start](https://github.com/user-attachments/assets/af03059f-51d1-4bc4-8685-d5dcdf2fb3fb)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-### `yarn build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `yarn eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+# App also includes notifications on broadcasting a message and white/dark themes.
